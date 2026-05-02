@@ -17,7 +17,7 @@ func TestAdd(t *testing.T) {
 		task := Task{
 			Id:          1,
 			Description: "a task description",
-			Status:      "todo",
+			Status:      ToDo,
 		}
 
 		Add(task, fd)
@@ -44,19 +44,17 @@ func TestAdd(t *testing.T) {
 		task1 := Task{
 			Id:          1,
 			Description: "a task description",
-			Status:      "todo",
+			Status:      ToDo,
 		}
 		task2 := Task{
 			Id:          2,
 			Description: "another description",
-			Status:      "in progress",
+			Status:      InProgress,
 		}
 
 		tasks := []Task{task1}
 		err = json.NewEncoder(fd).Encode(tasks)
-		if err != nil {
-			t.Fatalf("error during json decoding, %v", err)
-		}
+		assertNoJsonError(t, err)
 
 		Add(task2, fd)
 
@@ -66,13 +64,10 @@ func TestAdd(t *testing.T) {
 		assertNoIOError(t, err)
 
 		err = json.NewDecoder(fd).Decode(&got)
-		if err != nil {
-			t.Fatalf("error during json decoding, %v", err)
-		}
+		assertNoJsonError(t, err)
 
-		if !reflect.DeepEqual(got, tasks) {
-			t.Errorf("got %+v, want %+v", got, tasks)
-		}
+		assertTaskListsEqual(t, got, tasks)
+
 	})
 }
 
@@ -80,5 +75,19 @@ func assertNoIOError(t testing.TB, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatalf("error during io operation, %v", err)
+	}
+}
+
+func assertNoJsonError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatalf("error during json (de-)serialization, %v", err)
+	}
+}
+
+func assertTaskListsEqual(t testing.TB, got, want []Task) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
 	}
 }
