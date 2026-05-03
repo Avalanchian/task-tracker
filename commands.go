@@ -8,15 +8,37 @@ import (
 )
 
 func Add(args []string, entries TaskList) (TaskList, string) {
-	for _, desc := range args {
-		task := Task{
-			Id:          len(entries) + 1,
-			Description: desc,
-			Status:      ToDo,
-		}
-		entries = append(entries, task)
+	builder := new(strings.Builder)
+
+	var currentIDs []int
+	for _, task := range entries {
+		currentIDs = append(currentIDs, task.Id)
 	}
-	return entries, fmt.Sprintf("Task added successfully (ID: %d)", len(entries))
+
+	for i, desc := range args {
+		for id := 1; id <= len(entries)+1; id++ {
+			if slices.Contains(currentIDs, id) {
+				continue
+			}
+
+			task := Task{
+				Id:          id,
+				Description: desc,
+				Status:      ToDo,
+			}
+			entries = append(entries, task)
+			currentIDs = append(currentIDs, id)
+			msg := fmt.Sprintf("Task added successfully (ID: %d)", id)
+
+			if i != len(args)-1 {
+				msg += "\n"
+			}
+
+			builder.WriteString(msg)
+			break
+		}
+	}
+	return entries, builder.String()
 }
 
 func List(entries TaskList) string {
