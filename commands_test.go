@@ -48,6 +48,19 @@ func TestDelete(t *testing.T) {
 	})
 }
 
+func TestUpdate(t *testing.T) {
+	t.Run("changes description of entry", func(t *testing.T) {
+		num := 3
+		entries := setupTempEntries(num)
+
+		entries, _ = Update([]string{"2", "new desc of task 2"}, entries)
+
+		if entries[1].Description != "new desc of task 2" {
+			t.Errorf("update malfunction, got %q, want %q", entries[1].Description, "new desc of task 2")
+		}
+	})
+}
+
 func setupTempEntries(n int) TaskList {
 	var entries TaskList
 

@@ -51,10 +51,10 @@ func Update(args []string, entries TaskList) (TaskList, string) {
 
 	id, err := strconv.Atoi(args[0])
 	checkConversionError(err)
-	for _, task := range entries {
+	for i, task := range entries {
 		if task.Id == id {
-			task.Description = args[1]
-			builder.WriteString(task.String() + "\n")
+			entries[i].Description = args[1]
+			builder.WriteString(entries[i].String() + "\n")
 			break
 		}
 	}
