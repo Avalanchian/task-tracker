@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type TaskStatus int
 
@@ -31,3 +34,24 @@ func (t Task) String() string {
 }
 
 type TaskList []Task
+
+func (l *TaskList) String() string {
+	builder := new(strings.Builder)
+	maxLen := 0
+
+	for _, task := range *l {
+		if len(task.Description) > maxLen {
+			maxLen = len(task.Description)
+		}
+	}
+
+	for i, task := range *l {
+		taskStr := fmt.Sprintf("%4d %-*s %s", task.Id, maxLen, task.Description, task.Status)
+		if i != len(*l)-1 {
+			taskStr += "\n"
+		}
+		builder.WriteString(taskStr)
+	}
+
+	return builder.String()
+}

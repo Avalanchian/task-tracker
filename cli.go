@@ -18,32 +18,16 @@ type CLI struct {
 	Args    []string
 }
 
-func NewCLI(path string) *CLI {
-	if len(os.Args) < 2 {
+func NewCLI(path string, args []string) *CLI {
+	cli := new(CLI)
+	cli.Args = args
+
+	if len(cli.Args) < 2 {
 		showHelpAndExit()
 	}
 
-	cli := new(CLI)
-	cli.Actions = make(SubCommands)
-
-	cli.Args = os.Args
-
-	cli.Actions["add"] = flag.NewFlagSet("add", flag.ExitOnError)
-	cli.Actions["list"] = flag.NewFlagSet("list", flag.ExitOnError)
-	cli.Actions["delete"] = flag.NewFlagSet("delete", flag.ExitOnError)
-	cli.Actions["update"] = flag.NewFlagSet("update", flag.ExitOnError)
-
-	var err error
-	cli.File, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
-	checkIOError(err)
-
-	fileInfo, err := cli.File.Stat()
-	checkIOError(err)
-
-	if fileInfo.Size() != 0 {
-		err = json.NewDecoder(cli.File).Decode(&cli.Entries)
-		checkJSONError(err)
-	}
+	cli.createSubCommands()
+	cli.constructEntriesFromFile(path)
 
 	return cli
 }
@@ -88,6 +72,30 @@ func (cli *CLI) Update() {
 func (cli *CLI) Finish() {
 	fmt.Println(cli.OutMsg)
 	cli.File.Close()
+}
+
+func (cli *CLI) createSubCommands() {
+	cli.Actions = make(SubCommands)
+
+	cli.Actions["add"] = flag.NewFlagSet("add", flag.ExitOnError)
+	cli.Actions["list"] = flag.NewFlagSet("list", flag.ExitOnError)
+	cli.Actions["delete"] = flag.NewFlagSet("delete", flag.ExitOnError)
+	cli.Actions["update"] = flag.NewFlagSet("update", flag.ExitOnError)
+}
+
+func (cli *CLI) constructEntriesFromFile(path string) {
+	var err error
+
+	cli.File, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+	checkIOError(err)
+
+	fileInfo, err := cli.File.Stat()
+	checkIOError(err)
+
+	if fileInfo.Size() != 0 {
+		err = json.NewDecoder(cli.File).Decode(&cli.Entries)
+		checkJSONError(err)
+	}
 }
 
 func showHelpAndExit() {

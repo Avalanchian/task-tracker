@@ -20,11 +20,7 @@ func Add(args []string, entries TaskList) (TaskList, string) {
 }
 
 func List(entries TaskList) string {
-	var taskStrings []string
-	for _, task := range entries {
-		taskStrings = append(taskStrings, task.String())
-	}
-	return strings.Join(taskStrings, "\n")
+	return entries.String()
 }
 
 func Delete(args []string, entries TaskList) (TaskList, string) {
