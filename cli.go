@@ -16,14 +16,18 @@ type CLI struct {
 	OutMsg  string
 	Actions SubCommands
 	Args    []string
+	fs      *flag.FlagSet
 }
 
-func NewCLI(path string, args []string) *CLI {
+func NewCLI(path string, args []string, w io.Writer) *CLI {
 	cli := new(CLI)
 	cli.Args = args
 
+	cli.fs = flag.NewFlagSet("task-tracker", flag.ExitOnError)
+	cli.setUsageFunc(w)
+
 	if len(cli.Args) < 2 {
-		showHelpAndExit()
+		cli.fs.Usage()
 	}
 
 	cli.createSubCommands()
@@ -51,11 +55,10 @@ func (cli *CLI) Act() {
 		updateSet.Parse(cli.Args[2:])
 		if updateSet.NArg() != 2 {
 			updateSet.Usage()
-			os.Exit(2)
 		}
 		cli.Entries, cli.OutMsg = Update(updateSet.Args(), cli.Entries)
 	default:
-		showHelpAndExit()
+		cli.fs.Usage()
 	}
 }
 
@@ -98,9 +101,11 @@ func (cli *CLI) constructEntriesFromFile(path string) {
 	}
 }
 
-func showHelpAndExit() {
-	flag.Usage()
-	os.Exit(2)
+func (cli *CLI) setUsageFunc(w io.Writer) {
+	cli.fs.SetOutput(w)
+	cli.fs.Usage = func() {
+		fmt.Fprintf(w, "Usage of %s:", cli.Args[0])
+	}
 }
 
 func checkIOError(err error) {
