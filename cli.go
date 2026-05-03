@@ -105,18 +105,18 @@ func showHelpAndExit() {
 
 func checkIOError(err error) {
 	if err != nil {
-		fmt.Errorf("i/o error %v", err)
+		fmt.Fprintf(os.Stderr, "i/o error %v", err)
 	}
 }
 
 func checkConversionError(err error) {
 	if err != nil {
-		fmt.Errorf("string conversion error %v", err)
+		fmt.Fprintf(os.Stderr, "string conversion error %v", err)
 	}
 }
 
 func checkJSONError(err error) {
 	if err != nil {
-		fmt.Errorf("json error %v", err)
+		fmt.Fprintf(os.Stderr, "json error %v", err)
 	}
 }
