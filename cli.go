@@ -17,6 +17,7 @@ type CLI struct {
 	Actions SubCommands
 	Args    []string
 	fs      *flag.FlagSet
+	writer  io.Writer
 }
 
 func NewCLI(path string, args []string, w io.Writer) *CLI {
@@ -24,7 +25,8 @@ func NewCLI(path string, args []string, w io.Writer) *CLI {
 	cli.Args = args
 
 	cli.fs = flag.NewFlagSet("task-tracker", flag.ExitOnError)
-	cli.setUsageFunc(w)
+	cli.writer = w
+	cli.setUsageFunc(cli.writer)
 
 	if len(cli.Args) < 2 {
 		cli.fs.Usage()
@@ -73,7 +75,7 @@ func (cli *CLI) Update() {
 }
 
 func (cli *CLI) Finish() {
-	fmt.Println(cli.OutMsg)
+	fmt.Fprintln(cli.writer, cli.OutMsg)
 	cli.File.Close()
 }
 
