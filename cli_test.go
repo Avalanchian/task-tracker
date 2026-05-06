@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,10 +20,10 @@ func TestNewCLI(t *testing.T) {
 	fd.Close()
 
 	out := new(bytes.Buffer)
-	_ = NewCLI(path, []string{"task-tracker"}, out)
+	_, err = NewCLI(path, []string{"task-tracker"}, out)
 
-	if len(out.String()) == 0 {
-		t.Errorf("expected error not present, %q", out.String())
+	if !errors.Is(err, NoCommandGiven) {
+		t.Errorf("expected error not present, %v", err)
 	}
 }
 
@@ -46,7 +47,7 @@ func TestAct(t *testing.T) {
 			fd.Close()
 
 			out := new(bytes.Buffer)
-			cli := NewCLI(path, args, out)
+			cli, _ := NewCLI(path, args, out)
 
 			cli.Act()
 
@@ -71,7 +72,7 @@ func TestCLIUpdate(t *testing.T) {
 	fd.Close()
 
 	out := new(bytes.Buffer)
-	cli := NewCLI(path, []string{"task-tracker", "delete", "3"}, out)
+	cli, _ := NewCLI(path, []string{"task-tracker", "delete", "3"}, out)
 
 	cli.Entries = setupTempEntries(2)
 	cli.Update()

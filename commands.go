@@ -45,13 +45,15 @@ func List(entries TaskList) string {
 	return entries.String()
 }
 
-func Delete(args []string, entries TaskList) (TaskList, string) {
+func Delete(args []string, entries TaskList) (TaskList, string, error) {
 	builder := new(strings.Builder)
 	builder.WriteString("Deleted:\n")
 
 	for _, arg := range args {
 		id, err := strconv.Atoi(arg)
-		checkConversionError(err)
+		if err = checkConversionError(err); err != nil {
+			return nil, "", fmt.Errorf("error in Delete command, %w", err)
+		}
 		for i, task := range entries {
 			if task.Id == id {
 				entries = slices.Delete(entries, i, i+1)
@@ -60,15 +62,17 @@ func Delete(args []string, entries TaskList) (TaskList, string) {
 			}
 		}
 	}
-	return entries, builder.String()
+	return entries, builder.String(), nil
 }
 
-func Update(args []string, entries TaskList) (TaskList, string) {
+func Update(args []string, entries TaskList) (TaskList, string, error) {
 	builder := new(strings.Builder)
 	builder.WriteString("Updated:\n")
 
 	id, err := strconv.Atoi(args[0])
-	checkConversionError(err)
+	if err = checkConversionError(err); err != nil {
+		return nil, "", fmt.Errorf("error in Update command, %w", err)
+	}
 	for i, task := range entries {
 		if task.Id == id {
 			entries[i].Description = args[1]
@@ -76,5 +80,5 @@ func Update(args []string, entries TaskList) (TaskList, string) {
 			break
 		}
 	}
-	return entries, builder.String()
+	return entries, builder.String(), nil
 }

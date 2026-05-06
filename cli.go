@@ -2,11 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 )
+
+var NoCommandGiven = errors.New("No command given")
 
 type SubCommands map[string]*flag.FlagSet
 
@@ -20,7 +23,7 @@ type CLI struct {
 	writer  io.Writer
 }
 
-func NewCLI(path string, args []string, w io.Writer) *CLI {
+func NewCLI(path string, args []string, w io.Writer) (*CLI, error) {
 	cli := new(CLI)
 	cli.Args = args
 
@@ -30,15 +33,21 @@ func NewCLI(path string, args []string, w io.Writer) *CLI {
 
 	if len(cli.Args) < 2 {
 		cli.fs.Usage()
+		return nil, NoCommandGiven
 	}
 
 	cli.createSubCommands()
-	cli.constructEntriesFromFile(path)
+	err := cli.constructEntriesFromFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed constructing entries from file, %w", err)
+	}
 
-	return cli
+	return cli, nil
 }
 
-func (cli *CLI) Act() {
+func (cli *CLI) Act() error {
+	var err error
+
 	switch cli.Args[1] {
 	case "add":
 		addSet := cli.Actions["add"]
@@ -51,27 +60,41 @@ func (cli *CLI) Act() {
 	case "delete":
 		deleteSet := cli.Actions["delete"]
 		deleteSet.Parse(cli.Args[2:])
-		cli.Entries, cli.OutMsg = Delete(deleteSet.Args(), cli.Entries)
+		cli.Entries, cli.OutMsg, err = Delete(deleteSet.Args(), cli.Entries)
+		if err != nil {
+			return fmt.Errorf("error deleting %s, %w", deleteSet.Arg(0), err)
+		}
 	case "update":
 		updateSet := cli.Actions["update"]
 		updateSet.Parse(cli.Args[2:])
 		if updateSet.NArg() != 2 {
 			updateSet.Usage()
 		}
-		cli.Entries, cli.OutMsg = Update(updateSet.Args(), cli.Entries)
+		cli.Entries, cli.OutMsg, err = Update(updateSet.Args(), cli.Entries)
+		if err != nil {
+			return fmt.Errorf("error updating %s, %w", updateSet.Arg(0), err)
+		}
 	default:
 		cli.fs.Usage()
 	}
+	return nil
 }
 
-func (cli *CLI) Update() {
+func (cli *CLI) Update() error {
 	err := cli.File.Truncate(0)
-	checkIOError(err)
+	if err = checkIOError(err); err != nil {
+		return fmt.Errorf("error truncating file %w", err)
+	}
 	_, err = cli.File.Seek(0, io.SeekStart)
-	checkIOError(err)
+	if err = checkIOError(err); err != nil {
+		return fmt.Errorf("error seeking to file start %w", err)
+	}
 
 	err = json.NewEncoder(cli.File).Encode(cli.Entries)
-	checkJSONError(err)
+	if err = checkJSONError(err); err != nil {
+		return fmt.Errorf("error encoding tasks as JSON %w", err)
+	}
+	return nil
 }
 
 func (cli *CLI) Finish() {
@@ -88,19 +111,28 @@ func (cli *CLI) createSubCommands() {
 	cli.Actions["update"] = flag.NewFlagSet("update", flag.ExitOnError)
 }
 
-func (cli *CLI) constructEntriesFromFile(path string) {
+func (cli *CLI) constructEntriesFromFile(path string) error {
 	var err error
 
 	cli.File, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
-	checkIOError(err)
+	if err = checkIOError(err); err != nil {
+		return fmt.Errorf("error opening file %s, %w", path, err)
+	}
 
 	fileInfo, err := cli.File.Stat()
-	checkIOError(err)
+	if err = checkIOError(err); err != nil {
+		cli.File.Close()
+		return fmt.Errorf("error getting file info, %w", err)
+	}
 
 	if fileInfo.Size() != 0 {
 		err = json.NewDecoder(cli.File).Decode(&cli.Entries)
-		checkJSONError(err)
+		if err = checkJSONError(err); err != nil {
+			cli.File.Close()
+			return fmt.Errorf("error decoding JSON entries, %w", err)
+		}
 	}
+	return nil
 }
 
 func (cli *CLI) setUsageFunc(w io.Writer) {
@@ -110,20 +142,23 @@ func (cli *CLI) setUsageFunc(w io.Writer) {
 	}
 }
 
-func checkIOError(err error) {
+func checkIOError(err error) error {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "i/o error %v", err)
+		return fmt.Errorf("i/o error %w", err)
 	}
+	return nil
 }
 
-func checkConversionError(err error) {
+func checkConversionError(err error) error {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "string conversion error %v", err)
+		return fmt.Errorf("string conversion error %w", err)
 	}
+	return nil
 }
 
-func checkJSONError(err error) {
+func checkJSONError(err error) error {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "json error %v", err)
+		return fmt.Errorf("json error %w", err)
 	}
+	return nil
 }

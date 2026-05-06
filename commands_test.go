@@ -40,7 +40,7 @@ func TestDelete(t *testing.T) {
 		num := 3
 		entries := setupTempEntries(num)
 
-		entries, _ = Delete([]string{"2"}, entries)
+		entries, _, _ = Delete([]string{"2"}, entries)
 
 		if len(entries) != num-1 {
 			t.Errorf("delete malfunction, %+v", entries)
@@ -53,7 +53,7 @@ func TestUpdate(t *testing.T) {
 		num := 3
 		entries := setupTempEntries(num)
 
-		entries, _ = Update([]string{"2", "new desc of task 2"}, entries)
+		entries, _, _ = Update([]string{"2", "new desc of task 2"}, entries)
 
 		if entries[1].Description != "new desc of task 2" {
 			t.Errorf("update malfunction, got %q, want %q", entries[1].Description, "new desc of task 2")
