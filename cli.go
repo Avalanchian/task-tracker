@@ -62,7 +62,7 @@ func (cli *CLI) Act() error {
 		deleteSet.Parse(cli.Args[2:])
 		cli.Entries, cli.OutMsg, err = Delete(deleteSet.Args(), cli.Entries)
 		if err != nil {
-			return fmt.Errorf("error deleting %s, %w", deleteSet.Arg(0), err)
+			return fmt.Errorf("error deleting, %w", err)
 		}
 	case "update":
 		updateSet := cli.Actions["update"]
@@ -73,6 +73,13 @@ func (cli *CLI) Act() error {
 		cli.Entries, cli.OutMsg, err = Update(updateSet.Args(), cli.Entries)
 		if err != nil {
 			return fmt.Errorf("error updating %s, %w", updateSet.Arg(0), err)
+		}
+	case "mark":
+		markSet := cli.Actions["mark"]
+		markSet.Parse(cli.Args[2:])
+		cli.Entries, cli.OutMsg, err = Mark(markSet.Args(), cli.Entries)
+		if err != nil {
+			return fmt.Errorf("error marking, %w", err)
 		}
 	default:
 		cli.fs.Usage()
@@ -109,6 +116,7 @@ func (cli *CLI) createSubCommands() {
 	cli.Actions["list"] = flag.NewFlagSet("list", flag.ExitOnError)
 	cli.Actions["delete"] = flag.NewFlagSet("delete", flag.ExitOnError)
 	cli.Actions["update"] = flag.NewFlagSet("update", flag.ExitOnError)
+	cli.Actions["mark"] = flag.NewFlagSet("mark", flag.ExitOnError)
 }
 
 func (cli *CLI) constructEntriesFromFile(path string) error {

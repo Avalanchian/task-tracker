@@ -61,6 +61,23 @@ func TestUpdate(t *testing.T) {
 	})
 }
 
+func TestMark(t *testing.T) {
+	t.Run("no options", func(t *testing.T) {
+		num := 3
+		entries := setupTempEntries(num)
+		entries[2].Status = InProgress
+
+		entries, _, _ = Mark([]string{"2", "3"}, entries)
+
+		if entries[1].Status != InProgress {
+			t.Errorf("got %v, want %v", entries[1].Status, InProgress)
+		}
+		if entries[2].Status != Done {
+			t.Errorf("got %v, want %v", entries[2].Status, Done)
+		}
+	})
+}
+
 func setupTempEntries(n int) TaskList {
 	var entries TaskList
 

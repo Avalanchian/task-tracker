@@ -31,7 +31,31 @@ type Task struct {
 }
 
 func (t Task) String() string {
-	return fmt.Sprintf("%4d %30s %11s", t.Id, t.Description, t.Status)
+	builder := new(strings.Builder)
+
+	switch t.Status {
+	case ToDo:
+		builder.WriteString("\033[31m")
+	case InProgress:
+		builder.WriteString("\033[33m")
+	case Done:
+		builder.WriteString("\033[32m")
+	}
+
+	maxLen := len(t.Description)
+	if len(t.Description) > 40 {
+		maxLen = 40
+	}
+
+	builder.WriteString(fmt.Sprintf(
+		"%4d %-*s  %s\033[0m",
+		t.Id,
+		maxLen,
+		truncateString(t.Description, 40),
+		t.Status,
+	))
+
+	return builder.String()
 }
 
 type TaskList []Task
@@ -53,39 +77,26 @@ func (l *TaskList) String() string {
 	}
 
 	for i, task := range *l {
-		var taskStr string
-
 		switch task.Status {
 		case ToDo:
-			taskStr = fmt.Sprintf(
-				"\033[31m%4d %-*s %s\033[0m",
-				task.Id,
-				maxLen,
-				truncateString(task.Description, 40),
-				task.Status,
-			)
+			builder.WriteString("\033[31m")
 		case InProgress:
-			taskStr = fmt.Sprintf(
-				"\033[33m%4d %-*s %s\033[0m",
-				task.Id,
-				maxLen,
-				truncateString(task.Description, 40),
-				task.Status,
-			)
+			builder.WriteString("\033[33m")
 		case Done:
-			taskStr = fmt.Sprintf(
-				"\033[32m%4d %-*s %s\033[0m",
-				task.Id,
-				maxLen,
-				truncateString(task.Description, 40),
-				task.Status,
-			)
+			builder.WriteString("\033[32m")
 		}
 
+		builder.WriteString(fmt.Sprintf(
+			"%4d %-*s  %s\033[0m",
+			task.Id,
+			maxLen,
+			truncateString(task.Description, 40),
+			task.Status,
+		))
+
 		if i != len(*l)-1 {
-			taskStr += "\n"
+			builder.WriteString("\n")
 		}
-		builder.WriteString(taskStr)
 	}
 
 	return builder.String()
