@@ -26,7 +26,7 @@ type CLI struct {
 func NewCLI(w io.Writer) (*CLI, error) {
 	entries, err := getEntriesFromJSON(StoragePath)
 	if err != nil {
-		return fmt.Errorf("Failed creating new CLI, %w", err)
+		return nil, fmt.Errorf("Failed creating new CLI, %w", err)
 	}
 
 	cli := &CLI{
@@ -34,20 +34,21 @@ func NewCLI(w io.Writer) (*CLI, error) {
 		Entries:  entries,
 		Commands: createSubCommands(),
 		Writer:   w,
-		flagset:  flag.NewFlagSet(),
+		flagset:  flag.NewFlagSet("task-tracker", flag.ContinueOnError),
 	}
 	cli.setupFlags()
 
-	return cli
+	return cli, nil
 }
 
 func getEntriesFromJSON(path string) ([]Task, error) {
-	fd, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+	fd, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("i/o error opening JSON store, %w", err)
 	}
+	defer fd.Close()
 
-	fdInfo, err = fd.Stat()
+	fdInfo, err := fd.Stat()
 	if err != nil {
 		return nil, fmt.Errorf("error getting file info, %w", err)
 	}
@@ -56,7 +57,7 @@ func getEntriesFromJSON(path string) ([]Task, error) {
 	if fdInfo.Size() != 0 {
 		err = json.NewDecoder(fd).Decode(&entries)
 		if err != nil {
-			return nil, fmt.Errorf("JSON decoding error, %w")
+			return nil, fmt.Errorf("JSON decoding error, %w", err)
 		}
 	}
 
@@ -89,4 +90,8 @@ func (cli *CLI) setupFlags() {
 	cli.Commands["mark"].BoolVar(&cli.Options.todo, "todo", false, "todo")
 	cli.Commands["mark"].BoolVar(&cli.Options.inProgress, "inprogress", false, "in progress")
 	cli.Commands["mark"].BoolVar(&cli.Options.done, "done", false, "done")
+}
+
+func (cli *CLI) Run() error {
+	return nil
 }

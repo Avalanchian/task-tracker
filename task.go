@@ -62,7 +62,7 @@ func (t *Task) String() string {
 		"%d  %-*s  %s  %v  %v\033[0m",
 		t.ID,
 		maxLen,
-		truncateString(t.Description),
+		truncateString(t.Description, maxLen),
 		t.Status,
 		t.Created,
 		t.Updated,
@@ -72,7 +72,7 @@ func (t *Task) String() string {
 	return builder.String()
 }
 
-func truncateString(s string, maxLen uint) string {
+func truncateString(s string, maxLen int) string {
 	if utf8.RuneCountInString(s) > maxLen {
 		return s[:maxLen-3] + "..."
 	}
