@@ -2,171 +2,91 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 )
 
-var NoCommandGiven = errors.New("No command given")
+const StoragePath = "task_store.json"
 
-type SubCommands map[string]*flag.FlagSet
+type FlagStore struct {
+	todo, inProgress, done bool
+}
 
 type CLI struct {
-	File    *os.File
-	Entries TaskList
-	OutMsg  string
-	Actions SubCommands
-	Args    []string
-	fs      *flag.FlagSet
-	writer  io.Writer
+	Entries  []Task
+	Args     []string
+	Options  FlagStore
+	Commands map[string]*flag.FlagSet
+	Writer   io.Writer
+	flagset  *flag.FlagSet
 }
 
-func NewCLI(path string, args []string, w io.Writer) (*CLI, error) {
-	cli := new(CLI)
-	cli.Args = args
-
-	cli.fs = flag.NewFlagSet("task-tracker", flag.ExitOnError)
-	cli.writer = w
-	cli.setUsageFunc(cli.writer)
-
-	if len(cli.Args) < 2 {
-		cli.fs.Usage()
-		return nil, NoCommandGiven
-	}
-
-	cli.createSubCommands()
-	err := cli.constructEntriesFromFile(path)
+func NewCLI(w io.Writer) (*CLI, error) {
+	entries, err := getEntriesFromJSON(StoragePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed constructing entries from file, %w", err)
+		return fmt.Errorf("Failed creating new CLI, %w", err)
 	}
 
-	return cli, nil
+	cli := &CLI{
+		Args:     os.Args,
+		Entries:  entries,
+		Commands: createSubCommands(),
+		Writer:   w,
+		flagset:  flag.NewFlagSet(),
+	}
+	cli.setupFlags()
+
+	return cli
 }
 
-func (cli *CLI) Act() error {
-	var err error
+func getEntriesFromJSON(path string) ([]Task, error) {
+	fd, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("i/o error opening JSON store, %w", err)
+	}
 
-	switch cli.Args[1] {
-	case "add":
-		addSet := cli.Actions["add"]
-		addSet.Parse(cli.Args[2:])
-		cli.Entries, cli.OutMsg = Add(addSet.Args(), cli.Entries)
-	case "list":
-		listSet := cli.Actions["list"]
-		listSet.Parse(cli.Args[2:])
-		cli.OutMsg = List(cli.Entries)
-	case "delete":
-		deleteSet := cli.Actions["delete"]
-		deleteSet.Parse(cli.Args[2:])
-		cli.Entries, cli.OutMsg, err = Delete(deleteSet.Args(), cli.Entries)
+	fdInfo, err = fd.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("error getting file info, %w", err)
+	}
+
+	var entries []Task
+	if fdInfo.Size() != 0 {
+		err = json.NewDecoder(fd).Decode(&entries)
 		if err != nil {
-			return fmt.Errorf("error deleting, %w", err)
-		}
-	case "update":
-		updateSet := cli.Actions["update"]
-		updateSet.Parse(cli.Args[2:])
-		if updateSet.NArg() != 2 {
-			updateSet.Usage()
-		}
-		cli.Entries, cli.OutMsg, err = Update(updateSet.Args(), cli.Entries)
-		if err != nil {
-			return fmt.Errorf("error updating %s, %w", updateSet.Arg(0), err)
-		}
-	case "mark":
-		markSet := cli.Actions["mark"]
-		markSet.Parse(cli.Args[2:])
-		cli.Entries, cli.OutMsg, err = Mark(markSet.Args(), cli.Entries)
-		if err != nil {
-			return fmt.Errorf("error marking, %w", err)
-		}
-	default:
-		cli.fs.Usage()
-	}
-	return nil
-}
-
-func (cli *CLI) Update() error {
-	err := cli.File.Truncate(0)
-	if err = checkIOError(err); err != nil {
-		return fmt.Errorf("error truncating file %w", err)
-	}
-	_, err = cli.File.Seek(0, io.SeekStart)
-	if err = checkIOError(err); err != nil {
-		return fmt.Errorf("error seeking to file start %w", err)
-	}
-
-	err = json.NewEncoder(cli.File).Encode(cli.Entries)
-	if err = checkJSONError(err); err != nil {
-		return fmt.Errorf("error encoding tasks as JSON %w", err)
-	}
-	return nil
-}
-
-func (cli *CLI) Finish() {
-	fmt.Fprintln(cli.writer, cli.OutMsg)
-	cli.File.Close()
-}
-
-func (cli *CLI) createSubCommands() {
-	cli.Actions = make(SubCommands)
-
-	cli.Actions["add"] = flag.NewFlagSet("add", flag.ExitOnError)
-	cli.Actions["list"] = flag.NewFlagSet("list", flag.ExitOnError)
-	cli.Actions["delete"] = flag.NewFlagSet("delete", flag.ExitOnError)
-	cli.Actions["update"] = flag.NewFlagSet("update", flag.ExitOnError)
-	cli.Actions["mark"] = flag.NewFlagSet("mark", flag.ExitOnError)
-}
-
-func (cli *CLI) constructEntriesFromFile(path string) error {
-	var err error
-
-	cli.File, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
-	if err = checkIOError(err); err != nil {
-		return fmt.Errorf("error opening file %s, %w", path, err)
-	}
-
-	fileInfo, err := cli.File.Stat()
-	if err = checkIOError(err); err != nil {
-		cli.File.Close()
-		return fmt.Errorf("error getting file info, %w", err)
-	}
-
-	if fileInfo.Size() != 0 {
-		err = json.NewDecoder(cli.File).Decode(&cli.Entries)
-		if err = checkJSONError(err); err != nil {
-			cli.File.Close()
-			return fmt.Errorf("error decoding JSON entries, %w", err)
+			return nil, fmt.Errorf("JSON decoding error, %w")
 		}
 	}
-	return nil
+
+	return entries, nil
 }
 
-func (cli *CLI) setUsageFunc(w io.Writer) {
-	cli.fs.SetOutput(w)
-	cli.fs.Usage = func() {
-		fmt.Fprintf(w, "Usage of %s:", cli.Args[0])
+func createSubCommands() map[string]*flag.FlagSet {
+	addCmd := flag.NewFlagSet("add", flag.ContinueOnError)
+	listCmd := flag.NewFlagSet("list", flag.ContinueOnError)
+	updateCmd := flag.NewFlagSet("update", flag.ContinueOnError)
+	deleteCmd := flag.NewFlagSet("delete", flag.ContinueOnError)
+	markCmd := flag.NewFlagSet("mark", flag.ContinueOnError)
+
+	commands := map[string]*flag.FlagSet{
+		"add":    addCmd,
+		"list":   listCmd,
+		"update": updateCmd,
+		"delete": deleteCmd,
+		"mark":   markCmd,
 	}
+
+	return commands
 }
 
-func checkIOError(err error) error {
-	if err != nil {
-		return fmt.Errorf("i/o error %w", err)
-	}
-	return nil
-}
+func (cli *CLI) setupFlags() {
+	cli.Commands["list"].BoolVar(&cli.Options.todo, "todo", false, "todo")
+	cli.Commands["list"].BoolVar(&cli.Options.inProgress, "inprogress", false, "in progress")
+	cli.Commands["list"].BoolVar(&cli.Options.done, "done", false, "done")
 
-func checkConversionError(err error) error {
-	if err != nil {
-		return fmt.Errorf("string conversion error %w", err)
-	}
-	return nil
-}
-
-func checkJSONError(err error) error {
-	if err != nil {
-		return fmt.Errorf("json error %w", err)
-	}
-	return nil
+	cli.Commands["mark"].BoolVar(&cli.Options.todo, "todo", false, "todo")
+	cli.Commands["mark"].BoolVar(&cli.Options.inProgress, "inprogress", false, "in progress")
+	cli.Commands["mark"].BoolVar(&cli.Options.done, "done", false, "done")
 }

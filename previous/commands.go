@@ -41,28 +41,40 @@ func Add(args []string, entries TaskList) (TaskList, string) {
 	return entries, builder.String()
 }
 
-func List(entries TaskList) string {
-	return entries.String()
+func List(flags Flags, entries TaskList) string {
+	if !(flags.toDo || flags.inProgress || flags.done) {
+		return entries.String()
+	}
+
+	var subset TaskList
+	for _, entry := range entries {
+		switch {
+		case flags.toDo && entry.Status == ToDo:
+			subset = append(subset, entry)
+		case flags.inProgress && entry.Status == InProgress:
+			subset = append(subset, entry)
+		case flags.done && entry.Status == Done:
+			subset = append(subset, entry)
+		}
+	}
+	return subset.String()
 }
 
 func Delete(args []string, entries TaskList) (TaskList, string, error) {
 	builder := new(strings.Builder)
 	builder.WriteString("Deleted:\n")
 
-	for i, arg := range args {
+	for _, arg := range args {
 		id, err := strconv.Atoi(arg)
 		if err = checkConversionError(err); err != nil {
 			return nil, "", fmt.Errorf("error in Delete command, %w", err)
 		}
-		for j, task := range entries {
+		for i, task := range entries {
 			if task.Id == id {
-				entries = slices.Delete(entries, j, j+1)
-				builder.WriteString(task.String())
+				entries = slices.Delete(entries, i, i+1)
+				builder.WriteString(task.String() + "\n")
 				break
 			}
-		}
-		if i != len(args)-1 {
-			builder.WriteString("\n")
 		}
 	}
 	return entries, builder.String(), nil
@@ -79,14 +91,14 @@ func Update(args []string, entries TaskList) (TaskList, string, error) {
 	for i, task := range entries {
 		if task.Id == id {
 			entries[i].Description = args[1]
-			builder.WriteString(entries[i].String())
+			builder.WriteString(entries[i].String() + "\n")
 			break
 		}
 	}
 	return entries, builder.String(), nil
 }
 
-func Mark(args []string, entries TaskList) (TaskList, string, error) {
+func Mark(args []string, flags Flags, entries TaskList) (TaskList, string, error) {
 	builder := new(strings.Builder)
 	builder.WriteString("Marked:\n")
 
@@ -97,7 +109,7 @@ func Mark(args []string, entries TaskList) (TaskList, string, error) {
 		}
 
 		for j, task := range entries {
-			if task.Id == id && (task.Status == ToDo || task.Status == InProgress) {
+			if task.Id == id && task.Status != Done {
 				entries[j].Status += 1
 				builder.WriteString(entries[j].String())
 				break

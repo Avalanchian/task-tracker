@@ -1,32 +1,20 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"os"
 )
 
-const FileStore = "task_store.json"
-
 func main() {
-	cli, err := NewCLI(FileStore, os.Args, os.Stderr)
-	if errors.Is(err, NoCommandGiven) {
-		return
-	} else if err != nil {
-		log.Printf("Error initializing CLI, %v", err)
-		return
-	}
-	defer cli.Finish()
-
-	err = cli.Act()
+	cli, err := NewCLI(os.Stderr)
 	if err != nil {
-		log.Printf("Error performing CLI action, %v", err)
+		log.Printf("failed to create new CLI, %v\n", err)
 		return
 	}
 
-	err = cli.Update()
+	err = cli.Run()
 	if err != nil {
-		log.Printf("Error updating CLI, %v", err)
+		log.Printf("error while running CLI, %v\n", err)
 		return
 	}
 }

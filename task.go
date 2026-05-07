@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
+
+const DescriptionCutoff = 30
 
 type TaskStatus int
 
@@ -14,24 +17,37 @@ const (
 	Done
 )
 
-var StatusStrings = map[TaskStatus]string{
+var statusText = map[TaskStatus]string{
 	ToDo:       "todo",
 	InProgress: "in progress",
 	Done:       "done",
 }
 
-func (t TaskStatus) String() string {
-	return StatusStrings[t]
+func (ts TaskStatus) String() string {
+	return statusText[ts]
 }
 
 type Task struct {
-	Id          int        `json:"ID"`
-	Description string     `json:"description"`
-	Status      TaskStatus `json:"status"`
+	ID          uint
+	Description string
+	Status      TaskStatus
+	Created     time.Time
+	Updated     time.Time
 }
 
-func (t Task) String() string {
+func NewTask(id uint, desc string) *Task {
+	return &Task{
+		ID:          id,
+		Description: desc,
+		Status:      ToDo,
+		Created:     time.Now(),
+		Updated:     time.Now(),
+	}
+}
+
+func (t *Task) String() string {
 	builder := new(strings.Builder)
+	maxLen := min(utf8.RuneCountInString(t.Description), DescriptionCutoff)
 
 	switch t.Status {
 	case ToDo:
@@ -42,69 +58,23 @@ func (t Task) String() string {
 		builder.WriteString("\033[32m")
 	}
 
-	maxLen := len(t.Description)
-	if len(t.Description) > 40 {
-		maxLen = 40
-	}
-
-	builder.WriteString(fmt.Sprintf(
-		"%4d %-*s  %s\033[0m",
-		t.Id,
+	taskStr := fmt.Sprintf(
+		"%d  %-*s  %s  %v  %v\033[0m",
+		t.ID,
 		maxLen,
-		truncateString(t.Description, 40),
+		truncateString(t.Description),
 		t.Status,
-	))
+		t.Created,
+		t.Updated,
+	)
+	builder.WriteString(taskStr)
 
 	return builder.String()
 }
 
-type TaskList []Task
-
-func (l *TaskList) String() string {
-	builder := new(strings.Builder)
-	cutoff := 40
-	maxLen := 0
-
-	for _, task := range *l {
-		if maxLen >= cutoff {
-			maxLen = cutoff
-			break
-		}
-
-		if len(task.Description) > maxLen {
-			maxLen = len(task.Description)
-		}
+func truncateString(s string, maxLen uint) string {
+	if utf8.RuneCountInString(s) > maxLen {
+		return s[:maxLen-3] + "..."
 	}
-
-	for i, task := range *l {
-		switch task.Status {
-		case ToDo:
-			builder.WriteString("\033[31m")
-		case InProgress:
-			builder.WriteString("\033[33m")
-		case Done:
-			builder.WriteString("\033[32m")
-		}
-
-		builder.WriteString(fmt.Sprintf(
-			"%4d %-*s  %s\033[0m",
-			task.Id,
-			maxLen,
-			truncateString(task.Description, 40),
-			task.Status,
-		))
-
-		if i != len(*l)-1 {
-			builder.WriteString("\n")
-		}
-	}
-
-	return builder.String()
-}
-
-func truncateString(str string, maxLen int) string {
-	if utf8.RuneCountInString(str) >= maxLen {
-		return string([]rune(str)[:maxLen-3]) + "..."
-	}
-	return str
+	return s
 }

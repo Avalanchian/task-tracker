@@ -61,13 +61,14 @@ func TestUpdate(t *testing.T) {
 	})
 }
 
+<<<<<<< HEAD
 func TestMark(t *testing.T) {
 	t.Run("no options", func(t *testing.T) {
 		num := 3
 		entries := setupTempEntries(num)
 		entries[2].Status = InProgress
 
-		entries, _, _ = Mark([]string{"2", "3"}, entries)
+		entries, _, _ = Mark([]string{"2", "3"}, Flags{}, entries)
 
 		if entries[1].Status != InProgress {
 			t.Errorf("got %v, want %v", entries[1].Status, InProgress)
@@ -76,8 +77,29 @@ func TestMark(t *testing.T) {
 			t.Errorf("got %v, want %v", entries[2].Status, Done)
 		}
 	})
+
+	t.Run("done flag", func(t *testing.T) {
+		num := 3
+		entries := setupTempEntries(num)
+		flags := Flags{
+			toDo:       false,
+			inProgress: true,
+			done:       false,
+		}
+
+		entries, _, _ = Mark([]string{"2", "3"}, flags, entries)
+
+		if entries[1].Status != InProgress {
+			t.Errorf("got %v, want %v", entries[1].Status, InProgress)
+		}
+		if entries[2].Status != InProgress {
+			t.Errorf("got %v, want %v", entries[2].Status, InProgress)
+		}
+	})
 }
 
+=======
+>>>>>>> parent of f6a6fa6 (Added mark command and improved string formats.)
 func setupTempEntries(n int) TaskList {
 	var entries TaskList
 

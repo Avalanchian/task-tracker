@@ -33,7 +33,6 @@ func TestAct(t *testing.T) {
 		{"task-tracker", "list", ""},
 		{"task-tracker", "delete", "4"},
 		{"task-tracker", "update", "3", "new description"},
-		{"task-tracker", "mark", "2"},
 	}
 
 	for _, args := range cases {
