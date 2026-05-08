@@ -17,4 +17,10 @@ func main() {
 		log.Printf("error while running CLI, %v\n", err)
 		return
 	}
+
+	err = cli.Save()
+	if err != nil {
+		log.Printf("error while saving data, %v\n", err)
+		return
+	}
 }

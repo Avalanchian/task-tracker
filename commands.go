@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -16,12 +18,14 @@ func Add(args []string, entries []Task) ([]Task, string) {
 		ids = append(ids, task.ID)
 	}
 
-	for i := 1; i <= len(entries); i++ {
+	for i := 1; i <= len(entries)+1; i++ {
 		if slices.Contains(ids, uint(i)) {
 			continue
 		}
+
 		entries = append(entries, NewTask(uint(i), args[0]))
 		newID = uint(i)
+		break
 	}
 
 	outStr := fmt.Sprintf("Task added successfully (ID: %d)", newID)
@@ -45,15 +49,47 @@ func List(flags FlagStore, entries []Task) string {
 	return builder.String()
 }
 
+func Delete(args []string, entries []Task) ([]Task, string, error) {
+	var deleteCount int
+	var toDelete []uint
+	var remaining []Task
+
+	builder := new(strings.Builder)
+
+	for _, arg := range args {
+		id, err := strconv.Atoi(arg)
+		if err != nil {
+			return nil, "", fmt.Errorf("unable to convert %q to valid id, %w", arg, err)
+		}
+		toDelete = append(toDelete, uint(id))
+	}
+
+	for _, task := range entries {
+		if slices.Contains(toDelete, task.ID) {
+			outStr := fmt.Sprintf("Task deleted successfully (ID: %d)", task.ID)
+			builder.WriteString(outStr)
+			deleteCount++
+
+			if deleteCount != len(args) {
+				builder.WriteString("\n")
+			}
+			continue
+		}
+
+		remaining = append(remaining, task)
+	}
+
+	return remaining, builder.String(), nil
+}
+
 func setDescriptionLength(entries []Task) int {
 	var maxDescLength int
 
 	for _, task := range entries {
 		descriptionLength := utf8.RuneCountInString(task.Description)
 
-		if descriptionLength > DescriptionCutoff {
-			maxDescLength = DescriptionCutoff
-			break
+		if descriptionLength >= DescriptionCutoff {
+			return DescriptionCutoff
 		}
 
 		if descriptionLength > maxDescLength {
@@ -65,7 +101,7 @@ func setDescriptionLength(entries []Task) int {
 }
 
 func truncateDescription(description string, maxLength int) string {
-	if utf8.RuneCountInString(description) < maxLength {
+	if utf8.RuneCountInString(description) <= maxLength {
 		return description
 	}
 
@@ -100,13 +136,13 @@ func setTaskColorByStatus(status TaskStatus, w io.StringWriter) {
 
 func formatStringForListOutput(task Task, maxDescLength int, w io.StringWriter) {
 	taskString := fmt.Sprintf(
-		"%4d  %-*s  %11s  %v  %v\033[0m",
+		"%4d  %-*s  %s  %v  %v\033[0m",
 		task.ID,
 		maxDescLength,
-		truncateDescription(task.Description, maxDescLength),
+		truncateDescription(task.Description, DescriptionCutoff),
 		task.Status,
-		task.Created,
-		task.Updated,
+		task.Created.Format(time.DateTime),
+		task.Updated.Format(time.DateTime),
 	)
 	w.WriteString(taskString)
 }

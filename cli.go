@@ -20,6 +20,7 @@ type CLI struct {
 	Options  FlagStore
 	Commands map[string]*flag.FlagSet
 	Writer   io.Writer
+	OutStr   string
 	flagset  *flag.FlagSet
 }
 
@@ -39,6 +40,66 @@ func NewCLI(w io.Writer) (*CLI, error) {
 	cli.setupFlags()
 
 	return cli, nil
+}
+
+func (cli *CLI) Run() error {
+	var err error
+
+	if len(cli.Args) < 2 {
+		return err
+	}
+
+	switch cli.Args[1] {
+	case "add":
+		err = cli.Commands["add"].Parse(cli.Args[2:])
+		if err != nil {
+			return fmt.Errorf("error passing add command, %w", err)
+		}
+		cli.Entries, cli.OutStr = Add(cli.Commands["add"].Args(), cli.Entries)
+	case "list":
+		err = cli.Commands["list"].Parse(cli.Args[2:])
+		if err != nil {
+			return fmt.Errorf("error passing list command, %w", err)
+		}
+		cli.OutStr = List(cli.Options, cli.Entries)
+	case "delete":
+		err = cli.Commands["delete"].Parse(cli.Args[2:])
+		if err != nil {
+			return fmt.Errorf("error passing delete command, %w", err)
+		}
+		cli.Entries, cli.OutStr, err = Delete(cli.Commands["delete"].Args(), cli.Entries)
+		if err != nil {
+			return fmt.Errorf("could not complete delete command, %w", err)
+		}
+	}
+
+	fmt.Fprintf(cli.Writer, cli.OutStr)
+	if len(cli.OutStr) != 0 {
+		fmt.Fprintf(cli.Writer, "\n")
+	}
+
+	return err
+}
+
+func (cli *CLI) Save() error {
+	fd, err := os.Create(StoragePath + "swap")
+	if err != nil {
+		return fmt.Errorf("could not create temporary storage, %w", err)
+	}
+
+	err = json.NewEncoder(fd).Encode(cli.Entries)
+	if err != nil {
+		fd.Close()
+		return fmt.Errorf("error encoding entries as JSON, %w", err)
+	}
+
+	fd.Close()
+	err = os.Rename(fd.Name(), StoragePath)
+	if err != nil {
+		return fmt.Errorf("error renaming temporary storage, %w", err)
+	}
+
+	return nil
 }
 
 func getEntriesFromJSON(path string) ([]Task, error) {
@@ -90,8 +151,4 @@ func (cli *CLI) setupFlags() {
 	cli.Commands["mark"].BoolVar(&cli.Options.todo, "todo", false, "todo")
 	cli.Commands["mark"].BoolVar(&cli.Options.inProgress, "inprogress", false, "in progress")
 	cli.Commands["mark"].BoolVar(&cli.Options.done, "done", false, "done")
-}
-
-func (cli *CLI) Run() error {
-	return nil
 }
