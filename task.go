@@ -35,8 +35,8 @@ type Task struct {
 	Updated     time.Time
 }
 
-func NewTask(id uint, desc string) *Task {
-	return &Task{
+func NewTask(id uint, desc string) Task {
+	return Task{
 		ID:          id,
 		Description: desc,
 		Status:      ToDo,
@@ -45,7 +45,7 @@ func NewTask(id uint, desc string) *Task {
 	}
 }
 
-func (t *Task) String() string {
+func (t Task) String() string {
 	builder := new(strings.Builder)
 	maxLen := min(utf8.RuneCountInString(t.Description), DescriptionCutoff)
 
