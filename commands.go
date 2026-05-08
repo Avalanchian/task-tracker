@@ -65,21 +65,84 @@ func Delete(args []string, entries []Task) ([]Task, string, error) {
 	}
 
 	for _, task := range entries {
-		if slices.Contains(toDelete, task.ID) {
-			outStr := fmt.Sprintf("Task deleted successfully (ID: %d)", task.ID)
-			builder.WriteString(outStr)
-			deleteCount++
-
-			if deleteCount != len(args) {
-				builder.WriteString("\n")
-			}
+		if !slices.Contains(toDelete, task.ID) {
 			continue
+		}
+
+		outStr := fmt.Sprintf("Task deleted successfully (ID: %d)", task.ID)
+		builder.WriteString(outStr)
+		deleteCount++
+
+		if deleteCount != len(args) {
+			builder.WriteString("\n")
 		}
 
 		remaining = append(remaining, task)
 	}
 
 	return remaining, builder.String(), nil
+}
+
+func Mark(args []string, flags FlagStore, entries []Task) ([]Task, string, error) {
+	var toMark []uint
+	var markFlag TaskStatus
+	var defaultBehaviour bool
+	var entriesOut []Task
+
+	builder := new(strings.Builder)
+
+	switch {
+	case flags.todo:
+		markFlag = ToDo
+	case flags.inProgress:
+		markFlag = InProgress
+	case flags.done:
+		markFlag = Done
+	default:
+		defaultBehaviour = true
+	}
+
+	for _, arg := range args {
+		id, err := strconv.Atoi(arg)
+		if err != nil {
+			return nil, "", fmt.Errorf("unable to convert %q to vailid id, %w", arg, err)
+		}
+		toMark = append(toMark, uint(id))
+	}
+
+	for i, task := range entries {
+		if !slices.Contains(toMark, task.ID) {
+			entriesOut = append(entriesOut, task)
+			continue
+		}
+
+		if defaultBehaviour && task.Status != Done {
+			task.Status++
+			task.Updated = time.Now()
+			outStr := fmt.Sprintf("Successfully marked as %s (ID: %d)", task.Status, task.ID)
+			if i != len(entries)-1 {
+				outStr += "\n"
+			}
+			builder.WriteString(outStr)
+		}
+
+		if defaultBehaviour {
+			entriesOut = append(entriesOut, task)
+			continue
+		}
+
+		task.Status = markFlag
+		task.Updated = time.Now()
+		outStr := fmt.Sprintf("Successfully marked as %s (ID: %d)", task.Status, task.ID)
+		if i != len(entries)-1 {
+			outStr += "\n"
+		}
+		builder.WriteString(outStr)
+
+		entriesOut = append(entriesOut, task)
+	}
+
+	return entriesOut, builder.String(), nil
 }
 
 func setDescriptionLength(entries []Task) int {
@@ -136,7 +199,7 @@ func setTaskColorByStatus(status TaskStatus, w io.StringWriter) {
 
 func formatStringForListOutput(task Task, maxDescLength int, w io.StringWriter) {
 	taskString := fmt.Sprintf(
-		"%4d  %-*s  %s  %v  %v\033[0m",
+		"%4d  %-*s  %-11s  %v  %v\033[0m",
 		task.ID,
 		maxDescLength,
 		truncateDescription(task.Description, DescriptionCutoff),

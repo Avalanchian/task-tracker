@@ -53,23 +53,32 @@ func (cli *CLI) Run() error {
 	case "add":
 		err = cli.Commands["add"].Parse(cli.Args[2:])
 		if err != nil {
-			return fmt.Errorf("error passing add command, %w", err)
+			return fmt.Errorf("error parsing add command, %w", err)
 		}
 		cli.Entries, cli.OutStr = Add(cli.Commands["add"].Args(), cli.Entries)
 	case "list":
 		err = cli.Commands["list"].Parse(cli.Args[2:])
 		if err != nil {
-			return fmt.Errorf("error passing list command, %w", err)
+			return fmt.Errorf("error parsing list command, %w", err)
 		}
 		cli.OutStr = List(cli.Options, cli.Entries)
 	case "delete":
 		err = cli.Commands["delete"].Parse(cli.Args[2:])
 		if err != nil {
-			return fmt.Errorf("error passing delete command, %w", err)
+			return fmt.Errorf("error parsing delete command, %w", err)
 		}
 		cli.Entries, cli.OutStr, err = Delete(cli.Commands["delete"].Args(), cli.Entries)
 		if err != nil {
 			return fmt.Errorf("could not complete delete command, %w", err)
+		}
+	case "mark":
+		err = cli.Commands["mark"].Parse(cli.Args[2:])
+		if err != nil {
+			return fmt.Errorf("error parsing mark command, %w", err)
+		}
+		cli.Entries, cli.OutStr, err = Mark(cli.Commands["mark"].Args(), cli.Options, cli.Entries)
+		if err != nil {
+			return fmt.Errorf("could not complete mark command, %w", err)
 		}
 	}
 
