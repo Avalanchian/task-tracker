@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	cli, err := NewCLI(os.Stderr)
+	cli, err := NewCLI(os.Args, os.Stderr, StoragePath)
 	if err != nil {
 		log.Printf("failed to create new CLI, %v\n", err)
 		return

@@ -36,23 +36,25 @@ type CLI struct {
 	Options  FlagStore
 	Commands map[string]*flag.FlagSet
 	Writer   io.Writer
+	Store    string
 	OutStr   string
 	flagset  *flag.FlagSet
 }
 
 // NewCLI creates and initializes a CLI, including the retrieval of tasks from the
 // JSON store.
-func NewCLI(w io.Writer) (*CLI, error) {
-	entries, err := getEntriesFromJSON(StoragePath)
+func NewCLI(args []string, w io.Writer, store string) (*CLI, error) {
+	entries, err := getEntriesFromJSON(store)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating new CLI, %w", err)
 	}
 
 	cli := &CLI{
-		Args:     os.Args,
+		Args:     args,
 		Entries:  entries,
 		Commands: createSubCommands(),
 		Writer:   w,
+		Store:    store,
 		flagset:  flag.NewFlagSet("task-tracker", flag.ContinueOnError),
 	}
 	cli.setupFlags()
@@ -112,7 +114,7 @@ func (cli *CLI) Run() error {
 		}
 	}
 
-	fmt.Fprintf(cli.Writer, cli.OutStr)
+	fmt.Fprintf(cli.Writer, "%s", cli.OutStr)
 	if len(cli.OutStr) != 0 {
 		fmt.Fprintf(cli.Writer, "\n")
 	}
@@ -124,7 +126,7 @@ func (cli *CLI) Run() error {
 // swap file and then calles os.Rename to overwrite, providing some assurance against data
 // loss.
 func (cli *CLI) Save() error {
-	fd, err := os.Create(StoragePath + ".swp")
+	fd, err := os.Create(cli.Store + ".swp")
 	if err != nil {
 		return fmt.Errorf("could not create temporary storage, %w", err)
 	}
@@ -136,7 +138,7 @@ func (cli *CLI) Save() error {
 	}
 
 	fd.Close()
-	err = os.Rename(fd.Name(), StoragePath)
+	err = os.Rename(fd.Name(), cli.Store)
 	if err != nil {
 		return fmt.Errorf("error renaming temporary storage, %w", err)
 	}
