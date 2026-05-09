@@ -6,10 +6,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+
+	"github.com/adrg/xdg"
 )
 
 // StoragePath determines the file path of the persistent JSON storage for the application.
-const StoragePath = "task_store.json"
+// It is set on application initialisation.
+var StoragePath string
+
+func init() {
+	StoragePath = filepath.Join(xdg.DataHome, "task-tracker", "tasks.json")
+}
 
 // FlagStore holds bools that are set when flags are passed.
 type FlagStore struct {
@@ -111,7 +119,7 @@ func (cli *CLI) Run() error {
 // swap file and then calles os.Rename to overwrite, providing some assurance against data
 // loss.
 func (cli *CLI) Save() error {
-	fd, err := os.Create(StoragePath + "swap")
+	fd, err := os.Create(StoragePath + ".swp")
 	if err != nil {
 		return fmt.Errorf("could not create temporary storage, %w", err)
 	}
