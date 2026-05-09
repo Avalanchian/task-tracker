@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -16,6 +17,10 @@ import (
 var StoragePath string
 
 func init() {
+	err := os.MkdirAll(filepath.Join(xdg.DataHome, "task-tracker"), 0777)
+	if err != nil {
+		log.Fatalf("Could not create storage directory, %v", err)
+	}
 	StoragePath = filepath.Join(xdg.DataHome, "task-tracker", "tasks.json")
 }
 
@@ -140,7 +145,7 @@ func (cli *CLI) Save() error {
 }
 
 func getEntriesFromJSON(path string) ([]Task, error) {
-	fd, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
+	fd, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("i/o error opening JSON store, %w", err)
 	}
