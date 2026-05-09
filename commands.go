@@ -56,12 +56,9 @@ func Delete(args []string, entries []Task) ([]Task, string, error) {
 
 	builder := new(strings.Builder)
 
-	for _, arg := range args {
-		id, err := strconv.Atoi(arg)
-		if err != nil {
-			return nil, "", fmt.Errorf("unable to convert %q to valid id, %w", arg, err)
-		}
-		toDelete = append(toDelete, uint(id))
+	toDelete, err := convertArgIDs(args)
+	if err != nil {
+		return nil, "", fmt.Errorf("could not convert arg IDs for deletion, %w", err)
 	}
 
 	for _, task := range entries {
@@ -84,33 +81,18 @@ func Delete(args []string, entries []Task) ([]Task, string, error) {
 }
 
 func Mark(args []string, flags FlagStore, entries []Task) ([]Task, string, error) {
-	var toMark []uint
-	var markFlag TaskStatus
-	var defaultBehaviour bool
+	var markCount int
 	var entriesOut []Task
 
 	builder := new(strings.Builder)
 
-	switch {
-	case flags.todo:
-		markFlag = ToDo
-	case flags.inProgress:
-		markFlag = InProgress
-	case flags.done:
-		markFlag = Done
-	default:
-		defaultBehaviour = true
+	markFlag, defaultBehaviour := setMarkBehaviour(flags)
+	toMark, err := convertArgIDs(args)
+	if err != nil {
+		return nil, "", fmt.Errorf("could not convert arg IDs for marking, %w", err)
 	}
 
-	for _, arg := range args {
-		id, err := strconv.Atoi(arg)
-		if err != nil {
-			return nil, "", fmt.Errorf("unable to convert %q to vailid id, %w", arg, err)
-		}
-		toMark = append(toMark, uint(id))
-	}
-
-	for i, task := range entries {
+	for _, task := range entries {
 		if !slices.Contains(toMark, task.ID) {
 			entriesOut = append(entriesOut, task)
 			continue
@@ -118,9 +100,10 @@ func Mark(args []string, flags FlagStore, entries []Task) ([]Task, string, error
 
 		if defaultBehaviour && task.Status != Done {
 			task.Status++
+			markCount++
 			task.Updated = time.Now()
 			outStr := fmt.Sprintf("Successfully marked as %s (ID: %d)", task.Status, task.ID)
-			if i != len(entries)-1 {
+			if markCount != len(args) {
 				outStr += "\n"
 			}
 			builder.WriteString(outStr)
@@ -132,13 +115,40 @@ func Mark(args []string, flags FlagStore, entries []Task) ([]Task, string, error
 		}
 
 		task.Status = markFlag
+		markCount++
 		task.Updated = time.Now()
 		outStr := fmt.Sprintf("Successfully marked as %s (ID: %d)", task.Status, task.ID)
-		if i != len(entries)-1 {
+		if markCount != len(args) {
 			outStr += "\n"
 		}
 		builder.WriteString(outStr)
 
+		entriesOut = append(entriesOut, task)
+	}
+
+	return entriesOut, builder.String(), nil
+}
+
+func Update(args []string, entries []Task) ([]Task, string, error) {
+	var entriesOut []Task
+
+	builder := new(strings.Builder)
+
+	toUpdate, err := convertArgIDs(args[:1])
+	if err != nil {
+		return nil, "", fmt.Errorf("Update failed during ID conversion, %w", err)
+	}
+
+	for _, task := range entries {
+		if !slices.Contains(toUpdate, task.ID) {
+			entriesOut = append(entriesOut, task)
+			continue
+		}
+
+		task.Description = args[1]
+		task.Updated = time.Now()
+		outStr := fmt.Sprintf("Successfully updated description (ID: %d)", task.ID)
+		builder.WriteString(outStr)
 		entriesOut = append(entriesOut, task)
 	}
 
@@ -220,4 +230,30 @@ func getTasksByStatus(entries []Task, status TaskStatus) []Task {
 		foundTasks = append(foundTasks, task)
 	}
 	return foundTasks
+}
+
+func setMarkBehaviour(flags FlagStore) (TaskStatus, bool) {
+	switch {
+	case flags.todo:
+		return ToDo, false
+	case flags.inProgress:
+		return InProgress, false
+	case flags.done:
+		return Done, false
+	default:
+		return ToDo, true
+	}
+}
+
+func convertArgIDs(args []string) ([]uint, error) {
+	var convertedArgs []uint
+	for _, arg := range args {
+		id, err := strconv.Atoi(arg)
+		if err != nil {
+			return nil, fmt.Errorf("unable to convert %q to vailid id, %w", arg, err)
+		}
+		convertedArgs = append(convertedArgs, uint(id))
+	}
+
+	return convertedArgs, nil
 }

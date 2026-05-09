@@ -80,6 +80,15 @@ func (cli *CLI) Run() error {
 		if err != nil {
 			return fmt.Errorf("could not complete mark command, %w", err)
 		}
+	case "update":
+		err = cli.Commands["update"].Parse(cli.Args[2:])
+		if err != nil {
+			return fmt.Errorf("error parsing update command, %w", err)
+		}
+		cli.Entries, cli.OutStr, err = Update(cli.Commands["update"].Args(), cli.Entries)
+		if err != nil {
+			return fmt.Errorf("could not complete update command, %w", err)
+		}
 	}
 
 	fmt.Fprintf(cli.Writer, cli.OutStr)
