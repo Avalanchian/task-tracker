@@ -8,12 +8,15 @@ import (
 	"os"
 )
 
+// StoragePath determines the file path of the persistent JSON storage for the application.
 const StoragePath = "task_store.json"
 
+// FlagStore holds bools that are set when flags are passed.
 type FlagStore struct {
 	todo, inProgress, done bool
 }
 
+// CLI stores and coordinates the data associated with the application.
 type CLI struct {
 	Entries  []Task
 	Args     []string
@@ -24,6 +27,8 @@ type CLI struct {
 	flagset  *flag.FlagSet
 }
 
+// NewCLI creates and initializes a CLI, including the retrieval of tasks from the
+// JSON store.
 func NewCLI(w io.Writer) (*CLI, error) {
 	entries, err := getEntriesFromJSON(StoragePath)
 	if err != nil {
@@ -42,6 +47,9 @@ func NewCLI(w io.Writer) (*CLI, error) {
 	return cli, nil
 }
 
+// Run handles the provided sub-command and selects the appropriate command function to
+// transform the entry list. All sub-commands can produce parsing errors, but some
+// commands, such as delete, mark, and update can return *strconv.NumError.
 func (cli *CLI) Run() error {
 	var err error
 
@@ -99,6 +107,9 @@ func (cli *CLI) Run() error {
 	return err
 }
 
+// Save writes cli.Entries as a JSON string in persistent storage. Initially it saves to a
+// swap file and then calles os.Rename to overwrite, providing some assurance against data
+// loss.
 func (cli *CLI) Save() error {
 	fd, err := os.Create(StoragePath + "swap")
 	if err != nil {

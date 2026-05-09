@@ -10,6 +10,8 @@ import (
 	"unicode/utf8"
 )
 
+// Add appends a new Task to entries with a Description given in args. It returns a
+// new task list and an output string to log the successful addition.
 func Add(args []string, entries []Task) ([]Task, string) {
 	var ids []uint
 	var newID uint
@@ -32,6 +34,8 @@ func Add(args []string, entries []Task) ([]Task, string) {
 	return entries, outStr
 }
 
+// List returns a string of all entries requested via flags with appropriate color
+// and formatting, with tasks delineated by newlines (\n).
 func List(flags FlagStore, entries []Task) string {
 	builder := new(strings.Builder)
 	toList := getRequestedTasks(flags, entries)
@@ -49,6 +53,9 @@ func List(flags FlagStore, entries []Task) string {
 	return builder.String()
 }
 
+// Delete returns a new task list from entries, without those tasks with IDs provided
+// by args. If any of args cannot be converted to uint, then Delete returns a
+// *strconv.NumError.
 func Delete(args []string, entries []Task) ([]Task, string, error) {
 	var deleteCount int
 	var toDelete []uint
@@ -80,6 +87,10 @@ func Delete(args []string, entries []Task) ([]Task, string, error) {
 	return remaining, builder.String(), nil
 }
 
+// Mark returns a new task list from entries. The tasks with IDs provided by args are
+// updated based on the flags provided. If no flags are provided, default behaviour is to
+// change ToDo to InProgress and InProgress to Done. If any of args cannot be converted
+// to uint, Mark returns a *strconv.NumError.
 func Mark(args []string, flags FlagStore, entries []Task) ([]Task, string, error) {
 	var markCount int
 	var entriesOut []Task
@@ -129,6 +140,9 @@ func Mark(args []string, flags FlagStore, entries []Task) ([]Task, string, error
 	return entriesOut, builder.String(), nil
 }
 
+// Update returns a new task list where the task with ID given by args[0] has a newr
+// Description, given by args[1]. If args[0] cannot be converted to uint, Update returns
+// a *strconv.NumError.
 func Update(args []string, entries []Task) ([]Task, string, error) {
 	var entriesOut []Task
 

@@ -7,8 +7,11 @@ import (
 	"unicode/utf8"
 )
 
+// DescriptionCutoff determines the maximum description length displayed when printing
+// tasks.
 const DescriptionCutoff = 30
 
+// TaskStatus is an Enum representing the state of a task.
 type TaskStatus int
 
 const (
@@ -23,10 +26,12 @@ var statusText = map[TaskStatus]string{
 	Done:       "done",
 }
 
+// String implements the Stringer interface.
 func (ts TaskStatus) String() string {
 	return statusText[ts]
 }
 
+// Task represents an entry in the todo list.
 type Task struct {
 	ID          uint
 	Description string
@@ -35,6 +40,7 @@ type Task struct {
 	Updated     time.Time
 }
 
+// NewTask is mostly a helpful way of creating a new task for the Add function.
 func NewTask(id uint, desc string) Task {
 	return Task{
 		ID:          id,
@@ -45,6 +51,7 @@ func NewTask(id uint, desc string) Task {
 	}
 }
 
+// String implements the Stringer interface.
 func (t Task) String() string {
 	builder := new(strings.Builder)
 	maxLen := min(utf8.RuneCountInString(t.Description), DescriptionCutoff)
