@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 )
@@ -20,20 +21,7 @@ func TestCLI(t *testing.T) {
 		}
 		fd.Close()
 
-		cli, err := NewCLI(args, buf, fd.Name())
-		if err != nil {
-			t.Fatalf("failed to create CLI, %v", err)
-		}
-
-		err = cli.Run()
-		if err != nil {
-			t.Fatalf("error while running CLI, %v", err)
-		}
-
-		err = cli.Save()
-		if err != nil {
-			t.Fatalf("error wile saving data, %v", err)
-		}
+		cli := runCLI(t, args, buf, fd.Name())
 
 		if len(cli.Entries) != 1 {
 			t.Errorf("failed to add, got %d, want 1", len(cli.Entries))
@@ -59,20 +47,7 @@ func TestCLI(t *testing.T) {
 		}
 		fd.Close()
 
-		cli, err := NewCLI(args, buf, fd.Name())
-		if err != nil {
-			t.Fatalf("failed to create CLI, %v", err)
-		}
-
-		err = cli.Run()
-		if err != nil {
-			t.Fatalf("error while running CLI, %v", err)
-		}
-
-		err = cli.Save()
-		if err != nil {
-			t.Fatalf("error wile saving data, %v", err)
-		}
+		cli := runCLI(t, args, buf, fd.Name())
 
 		if len(cli.Entries) != 4 {
 			t.Errorf("failed to add, got %d, want 4", len(cli.Entries))
@@ -80,7 +55,30 @@ func TestCLI(t *testing.T) {
 	})
 }
 
+func runCLI(t testing.TB, args []string, w io.Writer, path string) *CLI {
+	t.Helper()
+
+	cli, err := NewCLI(args, w, path)
+	if err != nil {
+		t.Fatalf("failed to create CLI, %v", err)
+	}
+
+	err = cli.Run()
+	if err != nil {
+		t.Fatalf("error while running CLI, %v", err)
+	}
+
+	err = cli.Save()
+	if err != nil {
+		t.Fatalf("error wile saving data, %v", err)
+	}
+
+	return cli
+}
+
 func createTestEntries(t testing.TB, num int) (entries []Task) {
+	t.Helper()
+
 	for i := range num {
 		desc := fmt.Sprintf("description of task %d", i+1)
 		task := NewTask(uint(i+1), desc)
