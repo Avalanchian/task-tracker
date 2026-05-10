@@ -1,5 +1,5 @@
 # task-tracker
-An implementation of the roadmap.sh task tracker cli project using Go. For educational purposes.
+An implementation of the roadmap.sh task tracker cli project using Go (https://roadmap.sh/projects/task-tracker). For educational purposes.
 
 ## Usage
 Invoke the app along with one of the following commands:
