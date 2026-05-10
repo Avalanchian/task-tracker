@@ -70,6 +70,7 @@ func Delete(args []string, entries []Task) ([]Task, string, error) {
 
 	for _, task := range entries {
 		if !slices.Contains(toDelete, task.ID) {
+			remaining = append(remaining, task)
 			continue
 		}
 
@@ -80,8 +81,6 @@ func Delete(args []string, entries []Task) ([]Task, string, error) {
 		if deleteCount != len(args) {
 			builder.WriteString("\n")
 		}
-
-		remaining = append(remaining, task)
 	}
 
 	return remaining, builder.String(), nil
