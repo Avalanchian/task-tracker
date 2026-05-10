@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/adrg/xdg"
 )
@@ -52,12 +53,26 @@ func NewCLI(args []string, w io.Writer, store string) (*CLI, error) {
 	cli := &CLI{
 		Args:     args,
 		Entries:  entries,
-		Commands: createSubCommands(),
+		Commands: createSubCommands(w),
 		Writer:   w,
 		Store:    store,
-		flagset:  flag.NewFlagSet("task-tracker", flag.ContinueOnError),
+		flagset:  flag.NewFlagSet(args[0], flag.ContinueOnError),
 	}
 	cli.setupFlags()
+	cli.flagset.Usage = func() {
+		fmt.Fprintf(cli.Writer, "Usage: %s <command> [options] args\n\n", args[0])
+		fmt.Fprintf(cli.Writer, "Commands:\n")
+
+		var commandNames []string
+		for key, _ := range cli.Commands {
+			commandNames = append(commandNames, key)
+		}
+
+		slices.Sort(commandNames)
+		for _, name := range commandNames {
+			fmt.Fprintf(cli.Writer, "\t%s\n", name)
+		}
+	}
 
 	return cli, nil
 }
@@ -69,7 +84,7 @@ func (cli *CLI) Run() error {
 	var err error
 
 	if len(cli.Args) < 2 {
-		return err
+		return flag.ErrHelp
 	}
 
 	switch cli.Args[1] {
@@ -112,6 +127,8 @@ func (cli *CLI) Run() error {
 		if err != nil {
 			return fmt.Errorf("could not complete update command, %w", err)
 		}
+	default:
+		return flag.ErrHelp
 	}
 
 	fmt.Fprintf(cli.Writer, "%s", cli.OutStr)
@@ -169,30 +186,74 @@ func getEntriesFromJSON(path string) ([]Task, error) {
 	return entries, nil
 }
 
-func createSubCommands() map[string]*flag.FlagSet {
-	addCmd := flag.NewFlagSet("add", flag.ContinueOnError)
-	listCmd := flag.NewFlagSet("list", flag.ContinueOnError)
-	updateCmd := flag.NewFlagSet("update", flag.ContinueOnError)
-	deleteCmd := flag.NewFlagSet("delete", flag.ContinueOnError)
-	markCmd := flag.NewFlagSet("mark", flag.ContinueOnError)
-
+func createSubCommands(w io.Writer) map[string]*flag.FlagSet {
 	commands := map[string]*flag.FlagSet{
-		"add":    addCmd,
-		"list":   listCmd,
-		"update": updateCmd,
-		"delete": deleteCmd,
-		"mark":   markCmd,
+		"add":    createAddCommand(w),
+		"list":   createListCommand(w),
+		"update": createUpdateCommand(w),
+		"delete": createDeleteCommand(w),
+		"mark":   createMarkCommand(w),
 	}
 
 	return commands
 }
 
 func (cli *CLI) setupFlags() {
-	cli.Commands["list"].BoolVar(&cli.Options.todo, "todo", false, "todo")
-	cli.Commands["list"].BoolVar(&cli.Options.inProgress, "inprogress", false, "in progress")
-	cli.Commands["list"].BoolVar(&cli.Options.done, "done", false, "done")
+	cli.Commands["list"].BoolVar(&cli.Options.todo, "todo", false, "list only outstanding tasks")
+	cli.Commands["list"].BoolVar(&cli.Options.inProgress, "inprogress", false, "list tasks that are currently in progress")
+	cli.Commands["list"].BoolVar(&cli.Options.done, "done", false, "list completed tasks")
 
-	cli.Commands["mark"].BoolVar(&cli.Options.todo, "todo", false, "todo")
-	cli.Commands["mark"].BoolVar(&cli.Options.inProgress, "inprogress", false, "in progress")
-	cli.Commands["mark"].BoolVar(&cli.Options.done, "done", false, "done")
+	cli.Commands["mark"].BoolVar(&cli.Options.todo, "todo", false, "mark a task with the given ID as todo")
+	cli.Commands["mark"].BoolVar(&cli.Options.inProgress, "inprogress", false, "mark a task with the given ID as in progress")
+	cli.Commands["mark"].BoolVar(&cli.Options.done, "done", false, "mark a task with the given ID as done")
+}
+
+func createAddCommand(w io.Writer) (command *flag.FlagSet) {
+	command = flag.NewFlagSet("add", flag.ExitOnError)
+	command.Usage = func() {
+		fmt.Fprintf(w, "Usage: todo add <description>\n\n")
+		fmt.Fprintf(w, "Adds a new task with given description\n")
+	}
+	return
+}
+
+func createListCommand(w io.Writer) (command *flag.FlagSet) {
+	command = flag.NewFlagSet("list", flag.ExitOnError)
+	command.Usage = func() {
+		fmt.Fprintf(w, "Usage: todo list [options]\n\n")
+		fmt.Fprintf(w, "Lists all tasks, filtered by an option (if provided).\n\n")
+		fmt.Fprintf(w, "Options:\n")
+		command.PrintDefaults()
+	}
+	return
+}
+
+func createMarkCommand(w io.Writer) (command *flag.FlagSet) {
+	command = flag.NewFlagSet("mark", flag.ExitOnError)
+	command.Usage = func() {
+		fmt.Fprintf(w, "Usage: todo mark [options] <ID>\n\n")
+		fmt.Fprintf(w, "Marks a task with the given ID as in progress/done.\n")
+		fmt.Fprintf(w, "A specific status can be chosen by supplying an option.\n\n")
+		fmt.Fprintf(w, "Options:\n")
+		command.PrintDefaults()
+	}
+	return
+}
+
+func createDeleteCommand(w io.Writer) (command *flag.FlagSet) {
+	command = flag.NewFlagSet("delete", flag.ExitOnError)
+	command.Usage = func() {
+		fmt.Fprintf(w, "Usage: todo delete <ID>\n\n")
+		fmt.Fprintf(w, "deletes the task associated with the provided ID\n")
+	}
+	return
+}
+
+func createUpdateCommand(w io.Writer) (command *flag.FlagSet) {
+	command = flag.NewFlagSet("update", flag.ExitOnError)
+	command.Usage = func() {
+		fmt.Fprintf(w, "Usage: todo update <ID> <description>\n\n")
+		fmt.Fprintf(w, "Updates a task with the given ID with a new description.\n")
+	}
+	return
 }

@@ -168,6 +168,99 @@ func TestCLIDelete(t *testing.T) {
 	}
 }
 
+func TestCLIMark(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	t.Run("no options (todo -> in progress)", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		args := []string{"task-tracker", "mark", "2"}
+
+		testEntries := createTestEntries(t, 3)
+		fd := setupTempFileStore(t, tmpDir, testEntries)
+
+		cli := runCLI(t, args, buf, fd.Name())
+
+		got := cli.Entries[1].Status
+		want := InProgress
+
+		if got != want {
+			t.Errorf("incorrect status, got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("no options (in progress -> done)", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		args := []string{"task-tracker", "mark", "2"}
+
+		testEntries := createTestEntries(t, 3)
+		testEntries[1].Status = InProgress
+		fd := setupTempFileStore(t, tmpDir, testEntries)
+
+		cli := runCLI(t, args, buf, fd.Name())
+
+		got := cli.Entries[1].Status
+		want := Done
+
+		if got != want {
+			t.Errorf("incorrect status, got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("todo -> done", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		args := []string{"task-tracker", "mark", "-done", "2"}
+
+		testEntries := createTestEntries(t, 3)
+		fd := setupTempFileStore(t, tmpDir, testEntries)
+
+		cli := runCLI(t, args, buf, fd.Name())
+
+		got := cli.Entries[1].Status
+		want := Done
+
+		if got != want {
+			t.Errorf("incorrect status, got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("in progress -> todo", func(t *testing.T) {
+		buf := new(bytes.Buffer)
+		args := []string{"task-tracker", "mark", "-todo", "2"}
+
+		testEntries := createTestEntries(t, 3)
+		testEntries[1].Status = InProgress
+		fd := setupTempFileStore(t, tmpDir, testEntries)
+
+		cli := runCLI(t, args, buf, fd.Name())
+
+		got := cli.Entries[1].Status
+		want := ToDo
+
+		if got != want {
+			t.Errorf("incorrect status, got %q, want %q", got, want)
+		}
+	})
+}
+
+func TestCLIUpdate(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	buf := new(bytes.Buffer)
+	args := []string{"task-tracker", "update", "2", "a new description"}
+
+	testEntries := createTestEntries(t, 3)
+	fd := setupTempFileStore(t, tmpDir, testEntries)
+
+	cli := runCLI(t, args, buf, fd.Name())
+
+	got := cli.Entries[1].Description
+	want := "a new description"
+
+	if got != want {
+		t.Errorf("incorrect status, got %q, want %q", got, want)
+	}
+}
+
 func runCLI(t testing.TB, args []string, w io.Writer, path string) *CLI {
 	t.Helper()
 
